@@ -1,0 +1,13 @@
+[project]
+name = "comfyui-a1111-styles"
+version = "0.1.0"
+description = "Custom node to manage A1111's styles.csv via an A1111-inspired UI."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = []
+license = { file = "LICENSE" }
+
+classifiers = [
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+]
