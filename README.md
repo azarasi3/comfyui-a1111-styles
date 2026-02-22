@@ -1,5 +1,4 @@
-# A1111風スタイル選択ノード
-v
+# A1111風スタイル選
 このカスタムノードは A1111 のスタイル選択ライクなUIを模したノードです。
 
 <img width="335" height="216" alt="image" src="https://github.com/user-attachments/assets/c743c4ca-4254-4c7a-bc59-ea99c8713df0" />
