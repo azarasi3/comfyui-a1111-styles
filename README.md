@@ -5,7 +5,7 @@
 
 ## ノードの種類
 
-* A1111 Styles Selector (Tags)
+* A1111 Styles Selector (Tags)  
   A1111 のスタイル風ノードです。
   `+ Add Style...` のドロップダウンリストから選択したスタイルを追加できます。  
   追加されたスタイルの右側にある **×** ボタンをクリックすると削除できます。
@@ -14,7 +14,9 @@
   |-|-|
   | <img width="281" height="185" alt="image" src="https://github.com/user-attachments/assets/e7d05377-3eaa-4208-ab84-2c04363bd11a" /> | <img width="281" height="209" alt="image" src="https://github.com/user-attachments/assets/5d5e634f-65f6-4fb9-92e0-1911e3a5b2f5" /> |
 
-* A1111 Styles Selector (CheckList)
+* A1111 Styles Selector (CheckList)  
+  プロンプトを素早く切り替えられるようにリスト版も用意しました。
+  項目を選択すると選択状態が反転します。一覧として常に表示されているため、複数の選択を素早く切り替え可能です。
 
   | 初期状態 | スタイル追加例 |
   |-|-|
