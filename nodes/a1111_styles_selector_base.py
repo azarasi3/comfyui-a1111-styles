@@ -44,8 +44,14 @@ class A1111StylesSelectorBase:
                 with open(yaml_path, 'r', encoding='utf-8') as f:
                     config = yaml.safe_load(f)
 
-                if config and "a111" in config and "base_path" in config["a111"]:
-                    base_path = config["a111"]["base_path"]
+                base_path = None
+                if config:
+                    for key in ["a111", "a1111"]:
+                        if key in config and "base_path" in config[key]:
+                            base_path = config[key]["base_path"]
+                            break
+
+                if base_path:
                     csv_path = os.path.join(base_path, "styles.csv")
                     if os.path.exists(csv_path):
                         paths[cls.A1111_STYLES_KEY] = csv_path

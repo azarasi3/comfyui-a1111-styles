@@ -137,10 +137,61 @@ app.registerExtension({
                         if (isTagsMode) {
                             // --- タグ選択モード (ドロップダウン + タグ表示) ---
                             
-                            // 1. 追加用ドロップダウン
+                            // 1. 選択済みタグエリア
+                            const tagsContainer = document.createElement("div");
+                            Object.assign(tagsContainer.style, {
+                                display: "flex",
+                                flexWrap: "wrap",
+                                gap: "4px",
+                                alignContent: "flex-start",
+                                marginBottom: "8px"
+                            });
+
+                            currentSelected.forEach(styleName => {
+                                const tag = document.createElement("div");
+                                Object.assign(tag.style, {
+                                    display: "flex",
+                                    alignItems: "center",
+                                    backgroundColor: "#236692",
+                                    color: "#fff",
+                                    padding: "2px 6px",
+                                    borderRadius: "12px",
+                                    fontSize: "11px",
+                                    border: "1px solid #457799"
+                                });
+
+                                const text = document.createElement("span");
+                                text.textContent = styleName;
+                                text.style.marginRight = "4px";
+                                tag.appendChild(text);
+
+                                const closeBtn = document.createElement("span");
+                                closeBtn.textContent = "×";
+                                Object.assign(closeBtn.style, {
+                                    cursor: "pointer",
+                                    fontWeight: "bold",
+                                    marginLeft: "5px",
+                                    fontSize: "14px",
+                                    padding: "0 5px"
+                                });
+                                closeBtn.onclick = () => {
+                                    const idx = currentSelected.indexOf(styleName);
+                                    if (idx > -1) {
+                                        currentSelected.splice(idx, 1);
+                                        stylesWidget.value = JSON.stringify(currentSelected);
+                                        renderStyleList(styles);
+                                    }
+                                };
+                                tag.appendChild(closeBtn);
+
+                                tagsContainer.appendChild(tag);
+                            });
+                            styleListContainer.appendChild(tagsContainer);
+
+                            // 2. 追加用ドロップダウン
                             const selectWrapper = document.createElement("div");
                             Object.assign(selectWrapper.style, {
-                                marginBottom: "8px",
+                                marginBottom: "4px",
                                 flexShrink: "0"
                             });
 
@@ -179,50 +230,37 @@ app.registerExtension({
                             selectWrapper.appendChild(select);
                             styleListContainer.appendChild(selectWrapper);
 
-                            // 2. 選択済みタグエリア
-                            const tagsContainer = document.createElement("div");
-                            Object.assign(tagsContainer.style, {
-                                display: "flex",
-                                flexWrap: "wrap",
-                                gap: "4px",
-                                alignContent: "flex-start"
-                            });
+                            // 高さ自動調整
+                            // タグ追加などでコンテンツが増えた場合、ノードの高さを拡張して表示領域を確保する
+                            setTimeout(() => {
+                                if (stylesWidget.last_y) {
+                                    // コンテナの高さを一時的にautoにして真のコンテンツ高さを取得
+                                    // これを行わないと、現在のコンテナ高さ(this.size[1])がscrollHeightとして返され、
+                                    // 削除時にも高さが増え続けてしまう
+                                    const prevHeight = styleListContainer.style.height;
+                                    styleListContainer.style.height = "auto";
 
-                            currentSelected.forEach(styleName => {
-                                const tag = document.createElement("div");
-                                Object.assign(tag.style, {
-                                    display: "flex",
-                                    alignItems: "center",
-                                    backgroundColor: "#236692",
-                                    color: "#fff",
-                                    padding: "2px 6px",
-                                    borderRadius: "12px",
-                                    fontSize: "11px",
-                                    border: "1px solid #457799"
-                                });
+                                    const scale = app.canvas.ds.scale;
+                                    const contentHeight = styleListContainer.scrollHeight / scale;
+                                    
+                                    // 測定後に戻す
+                                    styleListContainer.style.height = prevHeight;
 
-                                const text = document.createElement("span");
-                                text.textContent = styleName;
-                                text.style.marginRight = "4px";
-                                tag.appendChild(text);
+                                    const widgetY = stylesWidget.last_y;
+                                    const margin = 0;
+                                    const neededHeight = widgetY + contentHeight + margin;
+                                    
+                                    // 最小高さ（タグモード用）
+                                    const minHeight = 140;
+                                    const targetHeight = Math.max(minHeight, neededHeight);
 
-                                const closeBtn = document.createElement("span");
-                                closeBtn.textContent = "×";
-                                closeBtn.style.cursor = "pointer",
-                                closeBtn.style.fontWeight = "bold";
-                                closeBtn.onclick = () => {
-                                    const idx = currentSelected.indexOf(styleName);
-                                    if (idx > -1) {
-                                        currentSelected.splice(idx, 1);
-                                        stylesWidget.value = JSON.stringify(currentSelected);
-                                        renderStyleList(styles);
+                                    // サイズが不足している場合のみ更新（拡張）
+                                    if (targetHeight > this.size[1]) {
+                                        this.setSize([this.size[0], targetHeight]);
+                                        this.setDirtyCanvas(true, true);
                                     }
-                                };
-                                tag.appendChild(closeBtn);
-
-                                tagsContainer.appendChild(tag);
-                            });
-                            styleListContainer.appendChild(tagsContainer);
+                                }
+                            }, 0);
 
                             return; // タグモードの描画終了
                         }
@@ -341,6 +379,10 @@ app.registerExtension({
                     setTimeout(() => {
                         updateStyles(csvWidget.value);
                     }, 50);
+
+                    // ノードの最小サイズを確保
+                    this.size[0] = Math.max(this.size[0], 280);
+                    this.size[1] = Math.max(this.size[1], isTagsMode ? 140 : 350);
                 }
 
                 return r;

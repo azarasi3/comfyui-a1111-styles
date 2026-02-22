@@ -4,7 +4,10 @@ version = "0.1.0"
 description = "Custom node to manage A1111's styles.csv via an A1111-inspired UI."
 readme = "README.md"
 requires-python = ">=3.10"
-dependencies = []
+dependencies = [
+    "aiohttp==3.13.3",
+    "pyyaml==6.0.3",
+]
 license = { file = "LICENSE" }
 
 classifiers = [
