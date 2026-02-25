@@ -32,14 +32,230 @@ app.registerExtension({
                             });
                     });
 
-                    // 2. ウィジェットの順序を入れ替え: csv -> Refresh -> selected_styles
+                    // Editボタンを追加
+                    const editWidget = this.addWidget("button", "Edit", null, () => {
+                        showEditDialog(csvWidget.value);
+                    });
+
+                    // Refreshボタンと同様に高さを確保
+                    editWidget.computeSize = function(width) {
+                        return [width, 26];
+                    };
+
+                    // 編集ダイアログ表示関数
+                    const showEditDialog = async (filename) => {
+                        // 既存のダイアログがあれば削除
+                        const existing = document.getElementById("a1111-styles-edit-dialog");
+                        if (existing) existing.remove();
+
+                        // データ取得
+                        let stylesData = {};
+                        try {
+                            const res = await api.fetchApi("/a1111_styles/data?filename=" + encodeURIComponent(filename));
+                            stylesData = await res.json();
+                        } catch (e) {
+                            console.error("Failed to load styles data", e);
+                            alert("Failed to load styles data.");
+                            return;
+                        }
+
+                        // ダイアログ作成
+                        const dialog = document.createElement("div");
+                        dialog.id = "a1111-styles-edit-dialog";
+                        Object.assign(dialog.style, {
+                            position: "fixed",
+                            top: "50%",
+                            left: "50%",
+                            transform: "translate(-50%, -50%)",
+                            backgroundColor: "#333",
+                            padding: "20px",
+                            border: "1px solid #777",
+                            zIndex: "10000",
+                            width: "500px",
+                            color: "#ddd",
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: "10px",
+                            boxShadow: "0 0 10px rgba(0,0,0,0.5)",
+                            borderRadius: "5px"
+                        });
+
+                        dialog.innerHTML = `
+                            <h3 style="margin:0 0 10px 0; color:#fff;">Edit Styles CSV: ${filename}</h3>
+                            <div style="display:flex; gap:5px; align-items:center;">
+                                <label style="flex:1;">Style Name: 
+                                    <input list="a1111-styles-datalist" id="inp_style_name" style="width:100%; box-sizing:border-box; padding:4px; background:#222; color:#fff; border:1px solid #555;">
+                                </label>
+                                <button id="btn_refresh_csv" style="padding:4px 8px; cursor:pointer;">↻</button>
+                            </div>
+                            <datalist id="a1111-styles-datalist"></datalist>
+                            
+                            <label>Positive Prompt: 
+                                <textarea id="ta_pos" rows="4" style="width:100%; box-sizing:border-box; background:#222; color:#fff; border:1px solid #555; resize:vertical;"></textarea>
+                            </label>
+                            <label>Negative Prompt: 
+                                <textarea id="ta_neg" rows="4" style="width:100%; box-sizing:border-box; background:#222; color:#fff; border:1px solid #555; resize:vertical;"></textarea>
+                            </label>
+                            
+                            <div style="display:flex; gap:10px; margin-top:10px;">
+                                <button id="btn_save" style="flex:1; padding:6px 12px; cursor:pointer; background:#444; color:#fff; border:1px solid #666;">Save</button>
+                                <button id="btn_delete" style="flex:1; padding:6px 12px; cursor:pointer; background:#a00; color:#fff; border:1px solid #c00; display:none;">Delete</button>
+                                <button id="btn_close" style="flex:1; padding:6px 12px; cursor:pointer; background:#444; color:#fff; border:1px solid #666;">Close</button>
+                            </div>
+                        `;
+                        document.body.appendChild(dialog);
+
+                        const inpName = dialog.querySelector("#inp_style_name");
+                        const datalist = dialog.querySelector("#a1111-styles-datalist");
+                        const taPos = dialog.querySelector("#ta_pos");
+                        const taNeg = dialog.querySelector("#ta_neg");
+                        const btnSave = dialog.querySelector("#btn_save");
+                        const btnDelete = dialog.querySelector("#btn_delete");
+                        const btnClose = dialog.querySelector("#btn_close");
+                        const btnRefresh = dialog.querySelector("#btn_refresh_csv");
+
+                        // データリスト構築
+                        const updateDatalist = () => {
+                            datalist.innerHTML = "";
+                            Object.keys(stylesData).sort().forEach(name => {
+                                const opt = document.createElement("option");
+                                opt.value = name;
+                                datalist.appendChild(opt);
+                            });
+                        };
+                        updateDatalist();
+
+                        // 入力イベント
+                        inpName.oninput = () => {
+                            const name = inpName.value;
+                            if (name === "") {
+                                btnSave.textContent = "Save";
+                                btnSave.style.backgroundColor = "#444";
+                                btnDelete.style.display = "none";
+                                return;
+                            }
+                            if (stylesData[name]) {
+                                taPos.value = stylesData[name][0] || "";
+                                taNeg.value = stylesData[name][1] || "";
+                                btnSave.textContent = "Save";
+                                btnSave.style.backgroundColor = "#236692";
+                                btnDelete.style.display = "block";
+                            } else {
+                                // 新規
+                                // 既存データがない場合は入力内容を維持する（クリアしない）
+                                btnSave.textContent = "Add";
+                                btnSave.style.backgroundColor = "#28a745";
+                                btnDelete.style.display = "none";
+                            }
+                        };
+
+                        // 保存処理
+                        btnSave.onclick = async () => {
+                            const name = inpName.value.trim();
+                            if (!name) return alert("Please enter a style name.");
+                            
+                            try {
+                                const res = await api.fetchApi("/a1111_styles/save", {
+                                    method: "POST",
+                                    body: JSON.stringify({
+                                        filename: filename,
+                                        style_name: name,
+                                        positive: taPos.value,
+                                        negative: taNeg.value
+                                    })
+                                });
+                                const result = await res.json();
+                                if (result.success) {
+                                    // 成功したらデータを再取得してリスト更新
+                                    const dataRes = await api.fetchApi("/a1111_styles/data?filename=" + encodeURIComponent(filename));
+                                    stylesData = await dataRes.json();
+                                    updateDatalist();
+                                    // ノード側のリストも更新
+                                    updateStyles(filename);
+                                    alert("Saved successfully.");
+                                    // 入力状態をリセット（保存後の状態に）
+                                    inpName.dispatchEvent(new Event('input'));
+                                } else {
+                                    alert("Error: " + result.error);
+                                }
+                            } catch (e) {
+                                alert("Save failed: " + e);
+                            }
+                        };
+
+                        // 削除処理
+                        btnDelete.onclick = async () => {
+                            const name = inpName.value;
+                            if (!confirm(`Are you sure you want to delete style "${name}"?`)) return;
+
+                            try {
+                                const res = await api.fetchApi("/a1111_styles/delete", {
+                                    method: "POST",
+                                    body: JSON.stringify({
+                                        filename: filename,
+                                        style_name: name
+                                    })
+                                });
+                                const result = await res.json();
+                                if (result.success) {
+                                    const dataRes = await api.fetchApi("/a1111_styles/data?filename=" + encodeURIComponent(filename));
+                                    stylesData = await dataRes.json();
+                                    updateDatalist();
+                                    updateStyles(filename);
+                                    alert("Deleted successfully.");
+                                    inpName.value = "";
+                                    inpName.dispatchEvent(new Event('input'));
+                                } else {
+                                    alert("Error: " + result.error);
+                                }
+                            } catch (e) {
+                                alert("Delete failed: " + e);
+                            }
+                        };
+
+                        // 更新ボタン
+                        btnRefresh.onclick = async () => {
+                            try {
+                                const dataRes = await api.fetchApi("/a1111_styles/data?filename=" + encodeURIComponent(filename));
+                                stylesData = await dataRes.json();
+                                updateDatalist();
+                                updateStyles(filename);
+                                inpName.dispatchEvent(new Event('input'));
+                            } catch(e) {
+                                alert("Refresh failed");
+                            }
+                        };
+
+                        btnClose.onclick = () => dialog.remove();
+                    };
+
+                    // 2. ウィジェットの順序を入れ替え: csv -> Refresh -> Edit -> selected_styles
                     // これにより selected_styles が最下部に来るため、そこをリスト表示領域として利用する
                     const stylesIdx = this.widgets.indexOf(stylesWidget);
                     const refreshIdx = this.widgets.indexOf(refreshWidget);
+                    const editIdx = this.widgets.indexOf(editWidget);
+                    
+                    // 一旦削除して再配置
+                    this.widgets.splice(refreshIdx, 1);
+                    this.widgets.splice(editIdx - 1, 1); // refresh削除でインデックスずれるので注意が必要だが、findで取ったオブジェクトを使うのでspliceで消す
+                    
+                    // 正確にはオブジェクトから再配置する
+                    // 現在のwidgets配列からrefreshとeditを除去
+                    this.widgets = this.widgets.filter(w => w !== refreshWidget && w !== editWidget);
+                    
+                    // stylesWidgetのインデックスを再取得
+                    const newStylesIdx = this.widgets.indexOf(stylesWidget);
+                    
+                    // stylesWidgetの前に挿入
+                    this.widgets.splice(newStylesIdx, 0, refreshWidget, editWidget);
+
+                    /* 
+                    // 元のロジック（参考）
                     if (refreshIdx > stylesIdx) {
                         this.widgets.splice(refreshIdx, 1);
                         this.widgets.splice(stylesIdx, 0, refreshWidget);
                     }
+                    */
 
                     // 3. HTMLオーバーレイの作成
                     const styleListContainer = document.createElement("div");
@@ -55,6 +271,18 @@ app.registerExtension({
                         flexDirection: "column"
                     });
                     document.body.appendChild(styleListContainer);
+
+                    // 表示状態の監視ループ
+                    // サブグラフへの切り替え時などにオーバーレイが残るのを防ぐ
+                    const checkVisibility = () => {
+                        if (!styleListContainer.isConnected) return; // DOMから削除されていたら終了
+
+                        if (this.graph && app.canvas && app.canvas.graph && this.graph !== app.canvas.graph) {
+                            styleListContainer.style.display = "none";
+                        }
+                        requestAnimationFrame(checkVisibility);
+                    };
+                    requestAnimationFrame(checkVisibility);
 
                     // ノード削除時にDOMも削除
                     const onRemoved = this.onRemoved;

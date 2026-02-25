@@ -20,12 +20,49 @@ async def get_styles(request):
     
     return web.json_response([])
 
+@server.PromptServer.instance.routes.get("/a1111_styles/data")
+async def get_styles_data_api(request):
+    filename = request.rel_url.query.get("filename", "")
+    if not filename:
+        return web.json_response({})
+    
+    styles_data, _ = A1111StylesSelectorBase.get_styles_data(filename)
+    if filename in styles_data:
+        return web.json_response(styles_data[filename])
+    return web.json_response({})
+
 @server.PromptServer.instance.routes.get("/a1111_styles/refresh")
 async def refresh_styles(request):
     A1111StylesSelectorBase.refresh_cache()
     paths = A1111StylesSelectorBase.get_file_paths()
     file_names = sorted(list(paths.keys()))
     return web.json_response(file_names)
+
+@server.PromptServer.instance.routes.post("/a1111_styles/save")
+async def save_style(request):
+    json_data = await request.json()
+    filename = json_data.get("filename")
+    style_name = json_data.get("style_name")
+    positive = json_data.get("positive")
+    negative = json_data.get("negative")
+
+    if not filename or not style_name:
+        return web.json_response({"success": False, "error": "Missing filename or style_name"})
+
+    success, message = A1111StylesSelectorBase.save_style(filename, style_name, positive, negative)
+    return web.json_response({"success": success, "error": message})
+
+@server.PromptServer.instance.routes.post("/a1111_styles/delete")
+async def delete_style(request):
+    json_data = await request.json()
+    filename = json_data.get("filename")
+    style_name = json_data.get("style_name")
+
+    if not filename or not style_name:
+        return web.json_response({"success": False, "error": "Missing filename or style_name"})
+
+    success, message = A1111StylesSelectorBase.delete_style(filename, style_name)
+    return web.json_response({"success": success, "error": message})
 
 NODE_CLASS_MAPPINGS = {
     "A1111_Styles_Selector_CheckList": A1111StylesSelectorCheckList,

@@ -164,3 +164,92 @@ class A1111StylesSelectorBase:
                     neg_prompts.append(neg)
 
         return (", ".join(pos_prompts), ", ".join(neg_prompts))
+
+    @classmethod
+    def save_style(cls, filename, style_name, positive, negative):
+        file_paths = cls.get_file_paths()
+        if filename not in file_paths:
+            return False, "File not found"
+
+        filepath = file_paths[filename]
+        
+        rows = []
+        header = ["name", "prompt", "negative_prompt"]
+        
+        try:
+            with open(filepath, 'r', encoding='utf-8-sig', newline='') as f:
+                reader = csv.reader(f)
+                try:
+                    header = next(reader)
+                except StopIteration:
+                    pass
+                for row in reader:
+                    rows.append(row)
+        except Exception as e:
+            print(f"Error reading csv for save: {e}")
+            # ファイル読み込みエラー時は新規作成として扱う（空リスト）
+
+        # 更新または追加
+        found = False
+        for i, row in enumerate(rows):
+            if len(row) > 0 and row[0] == style_name:
+                # 行の長さを確保
+                while len(row) < 3:
+                    row.append("")
+                row[1] = positive
+                row[2] = negative
+                rows[i] = row
+                found = True
+                break
+        
+        if not found:
+            rows.append([style_name, positive, negative])
+
+        try:
+            with open(filepath, 'w', encoding='utf-8-sig', newline='') as f:
+                writer = csv.writer(f)
+                writer.writerow(header)
+                writer.writerows(rows)
+        except Exception as e:
+            return False, str(e)
+            
+        return True, "Success"
+
+    @classmethod
+    def delete_style(cls, filename, style_name):
+        file_paths = cls.get_file_paths()
+        if filename not in file_paths:
+            return False, "File not found"
+
+        filepath = file_paths[filename]
+        
+        rows = []
+        header = ["name", "prompt", "negative_prompt"]
+        
+        try:
+            with open(filepath, 'r', encoding='utf-8-sig', newline='') as f:
+                reader = csv.reader(f)
+                try:
+                    header = next(reader)
+                except StopIteration:
+                    pass
+                for row in reader:
+                    rows.append(row)
+        except Exception as e:
+            return False, f"Error reading csv: {e}"
+
+        # 削除対象以外を残す
+        new_rows = [row for row in rows if len(row) > 0 and row[0] != style_name]
+        
+        if len(rows) == len(new_rows):
+             return False, "Style not found"
+
+        try:
+            with open(filepath, 'w', encoding='utf-8-sig', newline='') as f:
+                writer = csv.writer(f)
+                writer.writerow(header)
+                writer.writerows(new_rows)
+        except Exception as e:
+            return False, str(e)
+            
+        return True, "Success"
